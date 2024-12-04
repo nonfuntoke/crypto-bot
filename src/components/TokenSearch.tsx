@@ -3,7 +3,6 @@ import { Search, AlertCircle } from 'lucide-react';
 import { TokenService } from '../services/tokenService';
 import { useTradingStore } from '../store/tradingStore';
 import { Chain } from '../types/token';
-import { useWeb3Store } from '../store/web3Store';
 
 export const TokenSearch: React.FC = () => {
   const [address, setAddress] = useState('');
@@ -11,17 +10,39 @@ export const TokenSearch: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const addAnalysis = useTradingStore((state) => state.addAnalysis);
-  const { isConnected } = useWeb3Store();
+
+  const validateAddress = (address: string, chain: Chain): string | null => {
+    if (!address) return 'Token address is required';
+    
+    if (chain === 'SOL') {
+      try {
+        const { PublicKey } = require('@solana/web3.js');
+        new PublicKey(address);
+        return null;
+      } catch {
+        return 'Invalid Solana address format';
+      }
+    } else {
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        return 'Invalid EVM address format';
+      }
+    }
+    
+    return null;
+  };
 
   const handleSearch = async () => {
-    if (!isConnected) {
-      setError('Please connect your wallet first');
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
+
+      // Validate address format
+      const validationError = validateAddress(address, chain);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
       const analysis = await TokenService.analyzeToken(address, chain);
       addAnalysis(analysis);
     } catch (error) {
@@ -49,7 +70,7 @@ export const TokenSearch: React.FC = () => {
           <input
             type="text"
             className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter token address..."
+            placeholder={chain === 'SOL' ? 'Enter Solana token address...' : 'Enter EVM token address...'}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
           />

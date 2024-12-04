@@ -21,7 +21,8 @@
     "react-query": "^3.39.3",
     "@supabase/supabase-js": "^2.39.7",
     "web3": "^4.5.0",
-    "zustand": "^4.5.1"
+    "zustand": "^4.5.1",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

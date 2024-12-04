@@ -1,8 +1,7 @@
-import axios from 'axios';
 import { Token, TokenAnalysis, Chain } from '../types/token';
 import { DexFactory } from './dex/dexFactory';
-import { web3Service } from './web3Service';
 import { ethers } from 'ethers';
+import { SolanaTokenService } from './solana/tokenService';
 
 // Minimal ABI for token info
 const ERC20_ABI = [
@@ -14,16 +13,26 @@ const ERC20_ABI = [
 
 export class TokenService {
   private static async getTokenContract(address: string, chain: Chain) {
-    const provider = web3Service.getProvider();
-    if (!provider) {
-      throw new Error('Web3 provider not initialized');
-    }
+    // Use public RPC endpoints based on chain
+    const rpcUrl = {
+      ETH: import.meta.env.VITE_ETH_RPC_URL,
+      BSC: import.meta.env.VITE_BSC_RPC_URL,
+      AVAX: import.meta.env.VITE_AVAX_RPC_URL,
+      SOL: import.meta.env.VITE_SOL_RPC_URL
+    }[chain];
+
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
     return new ethers.Contract(address, ERC20_ABI, provider);
   }
 
   private static async fetchTokenData(address: string, chain: Chain): Promise<Token> {
     try {
-      // Validate address format
+      // Handle Solana tokens separately
+      if (chain === 'SOL') {
+        return await SolanaTokenService.fetchTokenData(address);
+      }
+
+      // For EVM chains
       if (!ethers.isAddress(address)) {
         throw new Error('Invalid token address format');
       }
@@ -44,9 +53,9 @@ export class TokenService {
 
       // Fetch social metrics from Twitter API (simplified for demo)
       const socialMetrics = {
-        twitterFollowers: 10000, // Demo value
-        telegramMembers: 5000,   // Demo value
-        redditSubscribers: 2000  // Demo value
+        twitterFollowers: 10000,
+        telegramMembers: 5000,
+        redditSubscribers: 2000
       };
 
       // Calculate market cap
@@ -75,8 +84,13 @@ export class TokenService {
 
   private static async analyzeContractRisk(address: string, chain: Chain) {
     try {
-      // In a production environment, these checks would be more thorough
-      const provider = web3Service.getProvider();
+      const provider = new ethers.JsonRpcProvider({
+        ETH: import.meta.env.VITE_ETH_RPC_URL,
+        BSC: import.meta.env.VITE_BSC_RPC_URL,
+        AVAX: import.meta.env.VITE_AVAX_RPC_URL,
+        SOL: import.meta.env.VITE_SOL_RPC_URL
+      }[chain]);
+      
       const code = await provider.getCode(address);
       
       return {
@@ -93,6 +107,11 @@ export class TokenService {
 
   static async analyzeToken(address: string, chain: Chain): Promise<TokenAnalysis> {
     try {
+      // Handle Solana tokens separately
+      if (chain === 'SOL') {
+        return await SolanaTokenService.analyzeToken(address);
+      }
+
       const token = await this.fetchTokenData(address, chain);
       
       const analysis: string[] = [];
